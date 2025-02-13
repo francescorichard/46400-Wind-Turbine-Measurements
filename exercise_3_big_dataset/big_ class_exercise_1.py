@@ -6,40 +6,17 @@ import matplotlib.pyplot as plt
 import matplotlib as mpl
 
 #%% SETTINGS FOR GRAPHS
-mpl.rcParams['figure.figsize']  = (16,12)
-mpl.rcParams['font.size'] = 14
-mpl.rcParams['xtick.labelsize'] = 14
-mpl.rcParams['ytick.labelsize'] = 14
-mpl.rcParams['axes.labelsize'] = 14
-mpl.rcParams['axes.titlesize'] = 14
-mpl.rcParams['legend.fontsize'] = 14
+mpl.rcParams['figure.figsize']  = (16,8)
+mpl.rcParams['font.size'] = 18
+mpl.rcParams['xtick.labelsize'] = 18
+mpl.rcParams['ytick.labelsize'] = 18
+mpl.rcParams['axes.labelsize'] = 18
+mpl.rcParams['axes.titlesize'] = 18
+mpl.rcParams['legend.fontsize'] = 18
 
 #%% IMPORT DATAS
 WindData = pd.read_csv("C:\COPENAGHEN PRIMO ANNO\WIND_TURBINE_MEASUREMENTS\exercises\exercise 3_big_dataset\dataset.csv",parse_dates=['date_time'],index_col='date_time',
                        sep=';')
-
-#%% PLOT DATA
-# You can zoom in data and plot just one part to speed it up by using the function
-# WindData['columnname'].loc['initialtime:finaltime']
-colors = ['#003f5c','#bc5090','#ffa600']
-fig, (ax1, ax2, ax3) = plt.subplots(3,1,figsize=(16,12))
-ax1.plot(WindData.index,WindData['Wsp_18m'],linestyle='--',linewidth=1,label='$18\:m$',color = colors[0],alpha = 0.6)
-ax1.plot(WindData.index,WindData['Wsp_44m'],linestyle='--',linewidth=1,label='$44\:m$',color = colors[1],alpha = 0.6)
-ax1.plot(WindData.index,WindData['Wsp_70m'],linestyle='--',linewidth=1,label='$70\:m$',color = colors[2],alpha=0.6)
-ax1.set_ylabel('Wind speed',fontweight='bold')
-ax1.legend()
-ax1.set_xlim([WindData.index[0],WindData.index[-1]])
-
-ax2.plot(WindData.index,WindData['Wdir_41m'],linestyle='--',linewidth=1,label='$41\:m$',color = colors[0])
-ax2.set_ylabel('Wind direction',fontweight='bold')
-ax2.legend()
-ax2.set_xlim([WindData.index[0],WindData.index[-1]])
-
-ax3.plot(WindData.index,WindData['T_44m'],linestyle='--',linewidth=1,label='$44\:m$',color = colors[1])
-ax3.set_ylabel('Temperature',fontweight='bold')
-ax3.set_xlabel('Time',fontweight='bold')
-ax3.legend()
-ax3.set_xlim([WindData.index[0],WindData.index[-1]])
 
 #%% Horizontal component wind speed 44m
 WindData['Hor_ws_44m'] = np.sqrt(WindData['X_44m']**2+WindData['Y_44m']**2)
@@ -68,6 +45,7 @@ WindData['MyTB'] = WindData['MyTB']*gain_y+offset_y
 
 #%% Let's calculate the statistics
 ten_mean_speed = WindData.resample('10min').mean()
+ten_mean_speed = ten_mean_speed.reset_index().set_index('date_time')
 ten_std = WindData.resample('10min').std()
 ten_max= WindData.resample('10min').max()
 ten_min = WindData.resample('10min').min()
@@ -76,7 +54,73 @@ turb_intensity = ten_std/ten_mean_speed*100
 turb_intensity = turb_intensity.filter(items = ['Wsp_18m','Wsp_44m','Wsp_70m','Hor_ws_44m'])
 turb_intensity.rename(columns={'Wsp_18m':'Ti_18m','Wsp_44m':'Ti_44m','Wsp_70m':'Ti_70m',
                                'Hor_ws_44m':'Sonic_Ti_44m'},inplace = True)
+mean_ws_18 = WindData['Wsp_18m'].mean()
+mean_ws_44 = WindData['Wsp_44m'].mean()
+mean_ws_70 = WindData['Wsp_70m'].mean()
+#%% PLOT DATA
 
+def plotting_1data(xdata,ydata,column_name,num_plots,ylabel):
+    colors = ['#003f5c','#bc5090','#ffa600']
+    fig = plt.figure()
+    plt.plot(xdata,ydata,linestyle='--',linewidth=2,label=column_name,color = colors[0],alpha = 0.6)
+    plt.xlabel('Time',fontweight='bold')
+    plt.ylabel(ylabel,fontweight='bold')
+    plt.legend()
+    plt.xlim([xdata[0],xdata[-1]])
+    plt.minorticks_on()
+    plt.tick_params(direction='in',right=True,top =True)
+    plt.tick_params(labelbottom=True,labeltop=False,labelleft=True,labelright=False)
+    plt.tick_params(direction='in',which='minor',length=5,bottom=True,top=True,left=True,right=True)
+    plt.tick_params(direction='in',which='major',length=10,bottom=True,top=True,right=True,left=True)
+    return fig
 
+def plotting_multipledata(xdata,ydata,column_name,num_plots,y_label):
+    colors = ['#003f5c','#bc5090','#ffa600']
+    fig = plt.figure()
+    for ii in range(0,num_plots):
+        plt.plot(xdata,ydata[ii],linestyle='--',linewidth=2,label=column_name[ii],color = colors[ii],alpha = 0.6)
+    plt.xlabel('Time',fontweight='bold')
+    plt.ylabel(y_label,fontweight='bold')
+    plt.legend()
+    plt.xlim([xdata[0],xdata[-1]])
+    plt.minorticks_on()
+    plt.tick_params(direction='in',right=True,top =True)
+    plt.tick_params(labelbottom=True,labeltop=False,labelleft=True,labelright=False)
+    plt.tick_params(direction='in',which='minor',length=5,bottom=True,top=True,left=True,right=True)
+    plt.tick_params(direction='in',which='major',length=10,bottom=True,top=True,right=True,left=True)
+    return fig
 
+fig1 = plotting_multipledata(WindData.index, [np.array(WindData['Wsp_18m']),np.array(WindData['Wsp_44m']),
+                                      np.array(WindData['Wsp_70m'])],['Wdir_41m','Wsp_44m',
+                                                            'Wsp_70m'], 
+                                                             3, 'Wind Speed')
+fig1.savefig("wind_speeds"+".pdf", format="pdf")
+fig2 = plotting_multipledata(WindData.index, [np.array(WindData['Wdir_41m']),np.array(WindData['Dir_sonic'])],
+                                                            ['Wdir_41m','Dir_sonic'], 
+                                                             2, 'Wind direction')
+fig2.savefig("wind_direction"+".pdf", format="pdf")
+fig3 = plotting_multipledata(WindData.index, [np.array(WindData['X_44m']),np.array(WindData['Y_44m']),
+                                      np.array(WindData['Z_44m'])],['X_44m','Y_44m',
+                                                            'Z_44m'], 
+                                                             3, 'Sonic Wind Speed')
+fig3.savefig("anemometer_velocity_components"+".pdf", format="pdf")
+fig4 = plotting_multipledata(WindData.index, [np.array(WindData['T_44m']),np.array(WindData['AirAbs_18m']),
+                                      np.array(WindData['AirAbs_70m'])],['T_44m','AirAbs_18m',
+                                                            'AirAbs_70m'], 3, 'Temperature')
+fig4.savefig("temperature"+".pdf", format="pdf")                                                           
+fig5 = plotting_multipledata(WindData.index, [np.array(WindData['MyTB']),np.array(WindData['MxTB'])],
+                                                            ['MyTB','MxTB'], 
+                                                             2, 'Temperature')
+fig5.savefig("root_moments"+".pdf", format="pdf")
+#%% QUESTIONS
+
+# 1
+mean_horizontal_speed = np.sqrt(ten_mean_speed['X_44m']**2+ten_mean_speed['Y_44m']**2)
+absolute_diff_speed = np.abs(mean_horizontal_speed-ten_mean_speed['Hor_ws_44m'])
+fig = plt.figure(6)
+plt.plot(ten_mean_speed.index,ten_mean_speed['Hor_ws_44m'],linestyle='--',linewidth=2,label = 'Hor_ws before the mean')
+plt.plot(ten_mean_speed.index,mean_horizontal_speed,linestyle='--',linewidth=2,label = 'Hor_ws after the mean')
+plt.xlabel('Time',fontweight='bold')
+plt.ylabel('Wind speed',fontweight='bold')
+plt.legend()
 
