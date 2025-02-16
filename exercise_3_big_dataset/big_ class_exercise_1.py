@@ -4,7 +4,8 @@ import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 import matplotlib as mpl
-
+from sqlalchemy import create_engine,text
+import pytest
 #%% SETTINGS FOR GRAPHS
 mpl.rcParams['figure.figsize']  = (16,8)
 mpl.rcParams['font.size'] = 18
@@ -44,16 +45,21 @@ WindData['MxTB'] = WindData['MxTB']*gain_x+offset_x
 WindData['MyTB'] = WindData['MyTB']*gain_y+offset_y
 
 #%% Let's calculate the statistics
-ten_mean_speed = WindData.resample('10min').mean()
-ten_mean_speed = ten_mean_speed.reset_index().set_index('date_time')
-ten_std = WindData.resample('10min').std()
-ten_max= WindData.resample('10min').max()
-ten_min = WindData.resample('10min').min()
+ten_minute_means = WindData.resample('10min').mean()
+ten_minute_means.reset_index().set_index('date_time')
+ten_minute_std = WindData.resample('10min').std()
+ten_minute_std.reset_index().set_index('date_time')
+ten_minute_max= WindData.resample('10min').max()
+ten_minute_max.reset_index().set_index('date_time')
+ten_minute_min = WindData.resample('10min').min()
+ten_minute_min.reset_index().set_index('date_time')
 
-turb_intensity = ten_std/ten_mean_speed*100
-turb_intensity = turb_intensity.filter(items = ['Wsp_18m','Wsp_44m','Wsp_70m','Hor_ws_44m'])
-turb_intensity.rename(columns={'Wsp_18m':'Ti_18m','Wsp_44m':'Ti_44m','Wsp_70m':'Ti_70m',
+
+ten_minute_ti = ten_minute_std/ten_minute_means*100
+ten_minute_ti = ten_minute_ti.filter(items = ['Wsp_18m','Wsp_44m','Wsp_70m','Hor_ws_44m'])
+ten_minute_ti.rename(columns={'Wsp_18m':'Ti_18m','Wsp_44m':'Ti_44m','Wsp_70m':'Ti_70m',
                                'Hor_ws_44m':'Sonic_Ti_44m'},inplace = True)
+ten_minute_ti.reset_index().set_index('date_time')
 mean_ws_18 = WindData['Wsp_18m'].mean()
 mean_ws_44 = WindData['Wsp_44m'].mean()
 mean_ws_70 = WindData['Wsp_70m'].mean()
@@ -90,37 +96,48 @@ def plotting_multipledata(xdata,ydata,column_name,num_plots,y_label):
     plt.tick_params(direction='in',which='major',length=10,bottom=True,top=True,right=True,left=True)
     return fig
 
-fig1 = plotting_multipledata(WindData.index, [np.array(WindData['Wsp_18m']),np.array(WindData['Wsp_44m']),
-                                      np.array(WindData['Wsp_70m'])],['Wdir_41m','Wsp_44m',
-                                                            'Wsp_70m'], 
-                                                             3, 'Wind Speed')
-fig1.savefig("wind_speeds"+".pdf", format="pdf")
-fig2 = plotting_multipledata(WindData.index, [np.array(WindData['Wdir_41m']),np.array(WindData['Dir_sonic'])],
-                                                            ['Wdir_41m','Dir_sonic'], 
-                                                             2, 'Wind direction')
-fig2.savefig("wind_direction"+".pdf", format="pdf")
-fig3 = plotting_multipledata(WindData.index, [np.array(WindData['X_44m']),np.array(WindData['Y_44m']),
-                                      np.array(WindData['Z_44m'])],['X_44m','Y_44m',
-                                                            'Z_44m'], 
-                                                             3, 'Sonic Wind Speed')
-fig3.savefig("anemometer_velocity_components"+".pdf", format="pdf")
-fig4 = plotting_multipledata(WindData.index, [np.array(WindData['T_44m']),np.array(WindData['AirAbs_18m']),
-                                      np.array(WindData['AirAbs_70m'])],['T_44m','AirAbs_18m',
-                                                            'AirAbs_70m'], 3, 'Temperature')
-fig4.savefig("temperature"+".pdf", format="pdf")                                                           
-fig5 = plotting_multipledata(WindData.index, [np.array(WindData['MyTB']),np.array(WindData['MxTB'])],
-                                                            ['MyTB','MxTB'], 
-                                                             2, 'Temperature')
-fig5.savefig("root_moments"+".pdf", format="pdf")
+# #fig1 = plotting_multipledata(WindData.index, [np.array(WindData['Wsp_18m']),np.array(WindData['Wsp_44m']),
+#                                      np.array(WindData['Wsp_70m'])],['Wdir_41m','Wsp_44m',
+#                                                             'Wsp_70m'], 
+#                                                              3, 'Wind Speed')
+# #fig1.savefig("wind_speeds"+".pdf", format="pdf")
+# #fig2 = plotting_multipledata(WindData.index, [np.array(WindData['Wdir_41m']),np.array(WindData['Dir_sonic'])],
+#                                                             ['Wdir_41m','Dir_sonic'], 
+#                                                              2, 'Wind direction')
+# #fig2.savefig("wind_direction"+".pdf", format="pdf")
+# #fig3 = plotting_multipledata(WindData.index, [np.array(WindData['X_44m']),np.array(WindData['Y_44m']),
+#                                       np.array(WindData['Z_44m'])],['X_44m','Y_44m',
+#                                                             'Z_44m'], 
+#                                                              3, 'Sonic Wind Speed')
+# #fig3.savefig("anemometer_velocity_components"+".pdf", format="pdf")
+# #fig4 = plotting_multipledata(WindData.index, [np.array(WindData['T_44m']),np.array(WindData['AirAbs_18m']),
+#                                       np.array(WindData['AirAbs_70m'])],['T_44m','AirAbs_18m',
+#                                                             'AirAbs_70m'], 3, 'Temperature')
+# #fig4.savefig("temperature"+".pdf", format="pdf")                                                           
+# #fig5 = plotting_multipledata(WindData.index, [np.array(WindData['MyTB']),np.array(WindData['MxTB'])],
+#                                                             ['MyTB','MxTB'], 
+#                                                              2, 'Temperature')
+# #fig5.savefig("root_moments"+".pdf", format="pdf")
 #%% QUESTIONS
 
 # 1
-mean_horizontal_speed = np.sqrt(ten_mean_speed['X_44m']**2+ten_mean_speed['Y_44m']**2)
-absolute_diff_speed = np.abs(mean_horizontal_speed-ten_mean_speed['Hor_ws_44m'])
+mean_horizontal_speed = np.sqrt(ten_minute_means['X_44m']**2+ten_minute_means['Y_44m']**2)
+absolute_diff_speed = np.abs(mean_horizontal_speed-ten_minute_means['Hor_ws_44m'])
 fig = plt.figure(6)
-plt.plot(ten_mean_speed.index,ten_mean_speed['Hor_ws_44m'],linestyle='--',linewidth=2,label = 'Hor_ws before the mean')
-plt.plot(ten_mean_speed.index,mean_horizontal_speed,linestyle='--',linewidth=2,label = 'Hor_ws after the mean')
+plt.plot(ten_minute_means.index,ten_minute_means['Hor_ws_44m'],linestyle='--',linewidth=2,label = 'Hor_ws before the mean')
+plt.plot(ten_minute_means.index,mean_horizontal_speed,linestyle='--',linewidth=2,label = 'Hor_ws after the mean')
 plt.xlabel('Time',fontweight='bold')
 plt.ylabel('Wind speed',fontweight='bold')
 plt.legend()
+
+#%% connecting to SQL 
+connection_string = "mysql+pymysql://Group6:to6a6E@data02.windenergy.dtu.dk:3306/group6"
+engine = create_engine(connection_string, echo=True)
+
+#exporting data to SQL
+ten_minute_means.to_sql('10_minute_means',engine,index=True,chunksize=144,if_exists='append')
+ten_minute_std.to_sql('10_minute_std',engine,index=True,chunksize=144,if_exists='append')
+ten_minute_max.to_sql('10_minute_max',engine,index=True,chunksize=144,if_exists='append')
+ten_minute_min.to_sql('10_minute_min',engine,index=True,chunksize=144,if_exists='append')
+ten_minute_ti.to_sql('10_minute_ti',engine,index=True,chunksize=144,if_exists='append')
 
