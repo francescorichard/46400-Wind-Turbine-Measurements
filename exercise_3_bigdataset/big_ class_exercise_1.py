@@ -100,10 +100,11 @@ def plotting_multipledata(xdata,ydata,column_name,num_plots,y_label):
 #                                                             'Wsp_70m'], 
 #                                                              3, 'Wind Speed')
 # #fig1.savefig("wind_speeds"+".pdf", format="pdf")
-# #fig2 = plotting_multipledata(WindData.index, [np.array(WindData['Wdir_41m']),np.array(WindData['Dir_sonic'])],
-#                                                             ['Wdir_41m','Dir_sonic'], 
-#                                                              2, 'Wind direction')
-# #fig2.savefig("wind_direction"+".pdf", format="pdf")
+fig2 = plotting_multipledata(WindData.index, [np.array(WindData['Wdir_41m']),np.array(WindData['Dir_sonic']),
+                                                            np.array(WindData['yaw'])],
+                                                            ['Wdir_41m','Dir_sonic','yaw'], 
+                                                             3, 'Wind direction')
+fig2.savefig("wind_direction"+".pdf", format="pdf")
 # #fig3 = plotting_multipledata(WindData.index, [np.array(WindData['X_44m']),np.array(WindData['Y_44m']),
 #                                       np.array(WindData['Z_44m'])],['X_44m','Y_44m',
 #                                                             'Z_44m'], 
@@ -131,13 +132,13 @@ plt.legend()
 
 #%% connecting to SQL 
 # Change user and password from DTU Learn
-connection_string = "mysql+pymysql://GroupXX:xxxxxx@data02.windenergy.dtu.dk:3306/group6"
-engine = create_engine(connection_string, echo=True)
+# connection_string = "mysql+pymysql://GroupXX:xxxxxx@data02.windenergy.dtu.dk:3306/group6"
+# engine = create_engine(connection_string, echo=True)
 
-#exporting data to SQL
-ten_minute_means.to_sql('10_minute_means',engine,index=True,chunksize=144,if_exists='append')
-ten_minute_std.to_sql('10_minute_std',engine,index=True,chunksize=144,if_exists='append')
-ten_minute_max.to_sql('10_minute_max',engine,index=True,chunksize=144,if_exists='append')
-ten_minute_min.to_sql('10_minute_min',engine,index=True,chunksize=144,if_exists='append')
-ten_minute_ti.to_sql('10_minute_ti',engine,index=True,chunksize=144,if_exists='append')
+# #exporting data to SQL
+# ten_minute_means.to_sql('10_minute_means',engine,index=True,chunksize=144,if_exists='append')
+# ten_minute_std.to_sql('10_minute_std',engine,index=True,chunksize=144,if_exists='append')
+# ten_minute_max.to_sql('10_minute_max',engine,index=True,chunksize=144,if_exists='append')
+# ten_minute_min.to_sql('10_minute_min',engine,index=True,chunksize=144,if_exists='append')
+# ten_minute_ti.to_sql('10_minute_ti',engine,index=True,chunksize=144,if_exists='append')
 
