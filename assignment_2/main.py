@@ -16,6 +16,7 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import matplotlib as mpl
 from sklearn.linear_model import LinearRegression
+import math
 
 #%% SETTINGS FOR GRAPHS
 #size
@@ -438,6 +439,11 @@ if plots_question_2:
 condition_direction = (WindData['Vane100m_Mean']>45) & (WindData['Vane100m_Mean']<270)
 condition_velocity = (WindData['Cup100m_Mean']>4) & (WindData['Cup100m_Mean']<16)
 condition_temperature = WindData['Temp100m_Mean']>2
+num=0
+for ii in range(len(condition_temperature)):
+    if condition_temperature[ii] == False and WindData['Temp100m_Mean'][ii] is not None \
+        and not math.isnan(WindData['Temp100m_Mean'][ii]):
+        num += 1
 condition_availability1 = WindData['Available']== 100
 condition_availability2 = (WindData['Available'] > 0) & (WindData['Available'] < 50) 
 if question_4:
@@ -573,8 +579,8 @@ if question_7:
     abs_uncertainty = []
     u_cal1 = 0.06/2 # k=1 1^st calibration uncertainty
     k_c = 0.8 #class A
-    u_mount = 0.01 # boom-mounted cup uncertainty (slide 18 wind speed uncertainties cup)
     for ii,V in enumerate(wind_speeds):
+        u_mount = 0.01*V # boom-mounted cup uncertainty (slide 18 wind speed uncertainties cup)
         u_cal2 =  0.01/np.sqrt(3)*V # k=1 #2^nd calibration uncertainty
         u_ope = k_c/(100*np.sqrt(3))*(0.5*V+5) #operational uncertainty
         u_cal = np.sqrt(u_cal1**2+u_cal2**2)
