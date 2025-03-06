@@ -23,11 +23,11 @@ mpl.rcParams['figure.figsize'] = (40,10)
 
 #font size of label, title, and legend
 mpl.rcParams['font.size'] = 25
-mpl.rcParams['xtick.labelsize'] = 30
-mpl.rcParams['ytick.labelsize'] = 30
-mpl.rcParams['axes.labelsize'] = 35
-mpl.rcParams['axes.titlesize'] = 35
-mpl.rcParams['legend.fontsize'] = 30
+mpl.rcParams['xtick.labelsize'] = 40
+mpl.rcParams['ytick.labelsize'] = 40
+mpl.rcParams['axes.labelsize'] = 45
+mpl.rcParams['axes.titlesize'] = 55
+mpl.rcParams['legend.fontsize'] = 40
 
 #Lines and markers
 mpl.rcParams['lines.linewidth'] = 2
@@ -53,8 +53,9 @@ plots_question_1 = False # default to False to have a faster code
 plots_question_1_cleaned = False # default to False to have a faster code
 plots_question_2 = False # default to False to have a faster code
 question_4 = False
-question_5 = True
-question_6 = True
+question_5 = False
+question_6 = False
+question_7 = True
 #%% question 1: plots
 if plots_question_1:
     # #wind speed mean
@@ -385,6 +386,22 @@ if plots_question_1_cleaned:
     plt.tick_params(direction='in',which='minor',length=5,bottom=True,top=True,left=True,right=False)
     plt.tick_params(direction='in',which='major',length=10,bottom=True,top=True,right=False,left=True)
     plt.savefig(r'.\results\question1\mean_speed_sonic_cleaned.pdf')
+    
+    # wind direction mean
+    fig = plt.figure(4)
+    plt.plot(WindData.index,WindData['Vane100m_Mean'],linestyle='--',label = 'Vane',alpha=0.8)
+    plt.plot(WindData.index,WindData['Sonic100m_Dir'],linestyle='--',label = 'Sonic',alpha=0.8)  
+    plt.xlabel('Time',fontweight='bold')
+    plt.ylabel('Wind direction [°]',fontweight='bold')
+    plt.legend(loc='upper left')
+    plt.title('Wind vane mean wind direction',fontweight='bold') 
+    plt.xlim([WindData.index[0],WindData.index[-1]])
+    plt.minorticks_on()
+    plt.tick_params(direction='in',right=False,top =True)
+    plt.tick_params(labelbottom=True,labeltop=False,labelleft=True,labelright=False)
+    plt.tick_params(direction='in',which='minor',length=5,bottom=True,top=True,left=True,right=False)
+    plt.tick_params(direction='in',which='major',length=10,bottom=True,top=True,right=False,left=True)
+    plt.savefig(r'.\results\question1\mean_wind_direction_cleaned.pdf')
 #%% question 2: ratio of the cup anemometer and sonic wind speeds at 100m
 # To clean the plot, let's just take the wind speeds higher than 4 m/s. This 
 # is also needed because otherwhise the wind vane won't be very accurate.
@@ -419,7 +436,7 @@ if plots_question_2:
 # ice formation on the cup. Furthermore, a condition on the lidar's availability is taken
 # into account
 condition_direction = (WindData['Vane100m_Mean']>45) & (WindData['Vane100m_Mean']<270)
-condition_velocity = (WindData['Cup100m_Mean']>3) & (WindData['Cup100m_Mean']<16)
+condition_velocity = (WindData['Cup100m_Mean']>4) & (WindData['Cup100m_Mean']<16)
 condition_temperature = WindData['Temp100m_Mean']>2
 condition_availability1 = WindData['Available']== 100
 condition_availability2 = (WindData['Available'] > 0) & (WindData['Available'] < 50) 
@@ -538,9 +555,9 @@ if question_6:
     plt.scatter(X_dir.flatten(), y_dir, label='Data',alpha=0.6)
     plt.plot(X_dir, model_results_dir, color='red', label=f'Fit: y={gain_dir:.3f}x{offset_dir:.3f}, $R^2$={r_squared_dir:.4f}')
     plt.plot(X_dir, model_forced_results_dir, color='k', label=f'Fit: y={gain_forced_dir:.3f}x, $R^2$={r_squared_forced_dir:.4f}',alpha=0.7)
-    plt.xlabel('Cup Anemometer Direction [°]',fontweight='bold')
+    plt.xlabel('Wind vane Direction [°]',fontweight='bold')
     plt.ylabel('Windcube Direction [°]',fontweight='bold')
-    plt.legend(loc='upper left',frameon=False)
+    plt.legend(loc='upper center',frameon=False)
     plt.title('Lidar wind direction versus wind vane wind direction',fontweight='bold')
     plt.minorticks_on()
     plt.tick_params(direction='in',right=False,top =True)
@@ -548,3 +565,19 @@ if question_6:
     plt.tick_params(direction='in',which='minor',length=5,bottom=True,top=True,left=True,right=False)
     plt.tick_params(direction='in',which='major',length=10,bottom=True,top=True,right=False,left=True)
     plt.savefig(r'.\results\question6\regression_direction.pdf')
+
+#%% question  7
+if question_7:
+    wind_speeds = [4, 8, 12] #wind speeds
+    rel_uncertainty = []
+    abs_uncertainty = []
+    u_cal1 = 0.06/2 # k=1 1^st calibration uncertainty
+    k_c = 0.8 #class A
+    u_mount = 0.01 # boom-mounted cup uncertainty (slide 18 wind speed uncertainties cup)
+    for ii,V in enumerate(wind_speeds):
+        u_cal2 =  0.01/np.sqrt(3)*V # k=1 #2^nd calibration uncertainty
+        u_ope = k_c/(100*np.sqrt(3))*(0.5*V+5) #operational uncertainty
+        u_cal = np.sqrt(u_cal1**2+u_cal2**2)
+        u_tot = np.sqrt(u_cal**2+u_ope**2+u_mount**2)
+        abs_uncertainty.append(u_tot)
+        rel_uncertainty.append(u_tot/V*100) #percentage
