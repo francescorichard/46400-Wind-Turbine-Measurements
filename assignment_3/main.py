@@ -73,7 +73,7 @@ WindData = WindData.apply(pd.to_numeric, errors='coerce')
 
 # saving important data
 temp = WindData['AirAbs_70m']+273.15
-pressure = WindData['Press_enc_2m']
+pressure = WindData['Press_enc_2m']*100
 rel_humidity = 0.01*WindData['RH_2m']
 vapor_pressure = 0.0000205*np.exp(0.0631846*temp)
 
@@ -81,7 +81,7 @@ vapor_pressure = 0.0000205*np.exp(0.0631846*temp)
 rho = 1/temp*(pressure/R_0-rel_humidity*vapor_pressure*(1/R_0-1/R_w))
 
 fig, ax = plt.subplots(1,1)
-ax.scatter(WindData['Wdir_41m'],WindData['TI_44m'],color='k',s=100)
+ax.scatter(WindData['Wdir_41m'],WindData['TI_44m'],color='k',s=20)
 ax.set_xlabel(r'$direction\:[^\circ]$')
 ax.set_ylabel(r'$TI\:[-]$')
 ax.set_ylim([0,80])
@@ -111,14 +111,15 @@ condition_2 = (WindData['Wdir_41m']>= 228.2) & (WindData['Wdir_41m']<= 360)
 WindData = WindData[condition_1 | condition_2]
 
 # normalized wind speed for active controlled wind turbine
-WindData['Wsp_44m'] = WindData['Wsp_44m']*(rho/rho_0)**1/3
+WindData['Wsp_44m'] = WindData['Wsp_44m']*(rho/rho_0)**(1/3)
 
+# creating bins
 width = 0.5 # width of velocity bins
-bins = int(cut_out_ws/0.5+2)
+bins = int(cut_out_ws/0.5+1)
 number_ws = np.empty(bins)
 mean_wind = np.empty(bins)
 mean_power = np.empty(bins)
-mean_std_power = np.empty(bins)
+std_power = np.empty(bins)
 cp = np.empty(bins)
 central_ws = np.empty(bins)
 for ii in range(bins):
@@ -138,33 +139,127 @@ for ii in range(bins):
     number_ws[ii] = len(filtered_wind)
     mean_wind[ii] = filtered_wind.mean()
     mean_power[ii] = filtered_power.mean()
-    mean_std_power[ii] = filtered_power.std()
+    std_power[ii] = filtered_power.std()
     cp[ii] = mean_power[ii]*1e3/(0.5*rho_0*A*mean_wind[ii]**3)
-all_data = pd.DataFrame({'Central_ws': central_ws, 'Number of points': number_ws, 'mean_wind': mean_wind,\
-                         'mean_power': mean_power,'cp':cp})
+    
+all_data = pd.DataFrame({'Central_ws': central_ws, 'Number of points': number_ws, 'mean wind': mean_wind,\
+                         'mean power': mean_power,'power stdv': std_power,'cp':cp})
 
+# power curve
 fig, ax = plt.subplots(1,1)
-ax.scatter(mean_wind,mean_power,color='k',s=300)
+ax.scatter(mean_wind,mean_power,color='k',s=300, label='Mean power')
+ax.errorbar(mean_wind, mean_power, yerr=std_power, fmt='o', color='k', capsize=5, label='Std Dev')
 ax.set_xlabel(r'$V\:[m/s]$')
 ax.set_ylabel(r'$P\:[kW]$')
 ax.grid()
 ax.minorticks_on()
-ax.grid()
+ax.legend(loc='upper left')
 ax.tick_params(direction='in',right=True,top =True)
 ax.tick_params(labelbottom=True,labeltop=False,labelleft=True,labelright=False)
 ax.tick_params(direction='in',which='minor',length=5,bottom=True,top=True,left=True,right=True)
 ax.tick_params(direction='in',which='major',length=10,bottom=True,top=True,right=True,left=True)
 
-fig, ax = plt.subplots(1,1)
-ax.scatter(WindData['Wsp_44m'],WindData['Pitch'],color='k',s=300)
-ax.set_xlabel(r'$V\:[m/s]$')
-ax.set_ylabel(r'$\theta\:[^\circ]$')
-ax.grid()
-ax.minorticks_on()
-ax.grid()
-ax.tick_params(direction='in',right=True,top =True)
-ax.tick_params(labelbottom=True,labeltop=False,labelleft=True,labelright=False)
-ax.tick_params(direction='in',which='minor',length=5,bottom=True,top=True,left=True,right=True)
-ax.tick_params(direction='in',which='major',length=10,bottom=True,top=True,right=True,left=True)
+# pitch graph after filtering
+# fig, ax = plt.subplots(1,1)
+# ax.scatter(WindData['Wsp_44m'],WindData['Pitch'],color='k',s=300)
+# ax.set_xlabel(r'$V\:[m/s]$')
+# ax.set_ylabel(r'$\theta\:[^\circ]$')
+# ax.grid()
+# ax.minorticks_on()
+# ax.grid()
+# ax.tick_params(direction='in',right=True,top =True)
+# ax.tick_params(labelbottom=True,labeltop=False,labelleft=True,labelright=False)
+# ax.tick_params(direction='in',which='minor',length=5,bottom=True,top=True,left=True,right=True)
+# ax.tick_params(direction='in',which='major',length=10,bottom=True,top=True,right=True,left=True)
 
+#%% uncertainty evaluation
 
+# category A
+unc_cat_a = std_power/np.sqrt(number_ws)
+
+# category B
+# I need to consider: 
+#       - power measurement uncertainty
+#       - wind speed uncertainty
+#       - temperature measurement uncertainty
+#       - pressure measurement uncertainty
+#       - relative humidity uncertainty
+
+# power uncertainty
+u_p = np.sqrt((0.002*mean_power)**2+3.7**2+0.3**2)
+
+# wind speed uncertainty
+u_v = np.sqrt(0.025**2+(0.038+0.0038*mean_wind)**2+(0.01*mean_wind)**2+\
+              (0.02*mean_wind)**2+(0.001*mean_wind)**2)
+sens_factor_v = np.zeros(len(mean_power))
+for ii in range(1,len(mean_power)):
+    if ii==1:
+        sens_factor_v[ii] = mean_power[ii]/(mean_wind[ii]-0.5)
+    else:
+        sens_factor_v[ii] =(mean_power[ii]-mean_power[ii-1])/(mean_wind[ii]-mean_wind[ii-1])
+
+# temperature uncertainty
+u_t = 0.6
+sens_factor_t = sens_factor_v*mean_wind/(3*288.15)
+
+# pressure uncertainty
+u_b = 2
+sens_factor_b = sens_factor_v*mean_wind/(3*1013)
+
+# relative humidity uncertainty
+u_rh = 0.63e-2
+sens_factor_rh = sens_factor_v*mean_wind*0.0018
+
+# total category B 
+unc_cat_b = np.sqrt(u_p**2+u_v**2*sens_factor_v**2+u_t**2*sens_factor_t**2+\
+                    u_b**2*sens_factor_b**2+u_rh**2*sens_factor_rh**2)
+
+unc_combined = np.sqrt(unc_cat_a**2+unc_cat_b**2)
+
+all_data['catA uncertainty'] = unc_cat_a
+all_data['catB uncertainty'] = unc_cat_b
+all_data['combined uncertainty'] = unc_combined
+
+#%% annual energy production
+V_ave = np.arange(4,12,1)
+AEP_measured = np.zeros(len(V_ave))
+AEP_extrapolated = np.zeros(len(V_ave))
+validity = []
+unc_aep_abs = np.zeros(len(V_ave))
+unc_aep_rel = np.zeros(len(V_ave))
+f_v_bef = np.zeros(len(mean_power))
+f_v_now = np.zeros(len(mean_power))
+for jj in range(len(V_ave)):
+    for ii in range(1,len(mean_power)):
+        if ii==1:
+            f_v_bef[ii] = 1-np.exp(-np.pi/4*((mean_wind[ii]-0.5)/V_ave[jj])**2)
+            p_i_bef = 0
+        else:
+            f_v_bef[ii] = 1-np.exp(-np.pi/4*(mean_wind[ii-1]/V_ave[jj])**2)
+            p_i_bef = mean_power[ii-1]
+        f_v_now[ii] = 1-np.exp(-np.pi/4*(mean_wind[ii]/V_ave[jj])**2)
+        p_i = mean_power[ii]
+        
+        if np.isnan(mean_power[ii]):
+            f_v_now[ii] = 1-np.exp(-np.pi/4*(central_ws[ii]/V_ave[jj])**2 )        
+            if np.isnan(mean_power[ii-1]):
+                f_v_bef[ii] = 1-np.exp(-np.pi/4*(central_ws[ii-1]/V_ave[jj])**2)
+            else:
+                highest_power = mean_power[ii-1]
+            AEP_extrapolated[jj] += 8760*(f_v_now[ii]-f_v_bef[ii])*highest_power
+    
+        else:
+            AEP_measured[jj] += 8760*(f_v_now[ii]-f_v_bef[ii])*(p_i+p_i_bef)/2
+            AEP_extrapolated[jj] += 8760*(f_v_now[ii]-f_v_bef[ii])*(p_i+p_i_bef)/2
+    rel_occurence = f_v_now-f_v_bef
+    unc_aep_abs[jj] = 8760 * np.sqrt(np.sum(rel_occurence**2 * np.nan_to_num(unc_cat_a)**2) + 
+                                 (np.sum(rel_occurence * np.nan_to_num(unc_cat_a)))**2)
+    unc_aep_rel[jj] = unc_aep_abs[jj]/AEP_measured[jj]*100
+    if AEP_measured[jj]>= AEP_extrapolated[jj]*0.95:
+        validity.append('Complete')
+    else:
+        validity.append('Incomplete')
+table_AEP = pd.DataFrame({'Ave_wind_speed (m/s)':V_ave,'measured_AEP (MWh)':AEP_measured/1e3,\
+                          'stdv_AEP (MWh)':unc_aep_abs/1e3,'stdv_AEP_rel':unc_aep_rel,\
+                          'extrapolated_AEP (MWh)':AEP_extrapolated/1e3,\
+                          'validity':validity})
